@@ -1,9 +1,16 @@
 import { Component, OnInit } from '@angular/core';
-import { AbstractControl, FormBuilder, FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { BaseModal, ListItem, ModalService } from 'carbon-components-angular';
 import { ModalSvc } from './modal.service';
 import { Subject } from 'rxjs';
+
+import { Race } from 'src/app/models/client/Race';
+import { Gender } from 'src/app/models/client/Gender';
+import { validateGender } from './validation/GenderValidators';
+import { validateRace } from './validation/RaceValidators';
+import { Charges } from 'src/app/utils/charges';
+
 
 @Component({
   selector: 'app-sample-modal',
@@ -16,126 +23,17 @@ export class ModalComponent extends BaseModal implements OnInit {
   tempTagFilter = [];
   filterCharge = [];
   selectedItemTag = [];
+
   public searchText = new Subject<string>();
 
-  
+  genderOptions:string[][] = Object.entries(Gender);
+  raceOptions:string[][] = Object.entries(Race);
 
-   genderIsSelected
-   raceIsSelected
+  genderIsSelected
+  raceIsSelected
 
   // charges record
-  charges = [
-    'Administration of Justice',
-    'Aggravated Assault Police Officer',
-    'Aggravated Battery Police Officer',
-    'Aggravated Battery With A Firearm',
-    'Aggravated Battery',
-    'Aggravated Discharge Firearm',
-    'Aggravated DUI',
-    'Aggravated Fleeing and Eluding',
-    'Aggravated Identity Theft',
-    'Aggravated Robbery',
-    'Antitrust',
-    'Armed Robbery',
-    'Armed Violence',
-    'Arson and Attempt Arson',
-    'Arson',
-    'Attempt Armed Robbery',
-    'Attempt Arson',
-    'Attempt First Degree Murder',
-    'Attempt Homicide',
-    'Attempt Sex Crimes',
-    'Attempt Vehicular Hijacking',
-    'Battery',
-    'Bomb Threat',
-    'Bribery',
-    'Bribery/Corruption',
-    'Burglary',
-    'Burglary/Trespass',
-    'Child Abduction',
-    'Child Pornography',
-    'Commercialized Vice',
-    'Communicating With Witness',
-    'Credit Card Cases',
-    'Criminal Damage to Property',
-    'Criminal Trespass To Residence',
-    'Deceptive Practice',
-    'Disarming Police Officer',
-    'Dog Fighting',
-    'Domestic Battery',
-    'Driving With Suspended Or Revoked License',
-    'Drug Possession',
-    'Drug Trafficking',
-    'DUI',
-    'Environmental',
-    'Escape - Failure to Return',
-    'Extortion/Racketeering',
-    'FALSIFICATION OF ACCOUNTS',
-    'Failure to Register as a Sex Offender',
-    'Firearms',
-    'Food and Drug',
-    'Forgery',
-    'Forgery/Counter/Copyright',
-    'Fraud',
-    'Fraud/Theft/Embezzlement',
-    'Fraudulent ID',
-    'Gambling',
-    'Gun - Non UUW',
-    'Gun Running',
-    'Hate Crimes',
-    'Home Invasion',
-    'Homicide',
-    'Human Trafficking',
-    'Identity Theft',
-    'Immigration',
-    'Impersonating Police Officer',
-    'Intimidation',
-    'Invidual Rights',
-    'Kidnapping',
-    'Major Accidents',
-    'Manslaughter',
-    'Money Laundering',
-    'Murder',
-    'Narcotics',
-    'National Defense',
-    'Obscenity/Other Sex Offenses',
-    'Obstructing Justice',
-    'Official Misconduct',
-    'Other Offense',
-    'Other',
-    'Pandering',
-    'Perjury',
-    'Possession Of Burglary Tools',
-    'Possession of Contraband in Penal Institution',
-    'Possession of Explosives',
-    'Possession of Stolen Motor Vehicle',
-    'Prison Offenses',
-    'PROMIS Conversion',
-    'Prostitution',
-    'Reckless Discharge of Firearm',
-    'Reckless Homicide',
-    'Residential Burglary',
-    'Retail Theft',
-    'REVOKED/SUSPENDED 2ND+ DUI',
-    'Robbery',
-    'Sex Crimes',
-    'SEX WITH ANIMAL/<18 PRESENT',
-    'Sexual Abuse',
-    'Stalking',
-    'Stalking/Harassing',
-    'Tampering',
-    'Tax',
-    'Theft by Deception',
-    'Theft',
-    'Unlawful Restraint',
-    'UUW - Unlawful Use of Weapon',
-    'Vehicular Hijacking',
-    'Vehicular Invasion',
-    'Violate Bail Bond',
-    'VIO BAIL BOND/CLASS X CONVIC',
-    'Violation of Sex Offender Registration',
-    'Violation Order Of Protection'
-  ];
+  charges = Charges.chargesList;
 
   // step-1 model
   textForButton = 'Next: Case details';
@@ -171,7 +69,6 @@ export class ModalComponent extends BaseModal implements OnInit {
     protected modalService: ModalService,
     protected modalSvc: ModalSvc,
     private fb:FormBuilder,
-    
   ) {
     super();
 
@@ -182,19 +79,28 @@ export class ModalComponent extends BaseModal implements OnInit {
    
     this.showProgress();
     
+    const initialGender = '';
+
+    const initialRace = '';
 
     this.defendantAndCaseForm = this.fb.group({
-
-      
         defendantname: new FormControl(),
-        defendantrace: new FormControl(['', Validators.compose(
-          [Validators.required, this.validateSelection]
-        )]),
-        defendantgender: new FormControl(['', Validators.compose(
-          [Validators.required, this.validateSelection]
-        )]    ),
-      
-     
+        defendantRace: new FormControl(initialRace, {
+          validators: [
+            Validators.required,
+            Validators.minLength(1),
+            validateRace
+          ]
+        }),
+
+        defendantGender: new FormControl(initialGender, {
+          validators: [
+            Validators.required, 
+            Validators.minLength(1), 
+            validateGender
+          ]
+        }),
+
       // casedescription: new FormControl(),
        chargeFilterInput: new FormControl(),
         chargeDescription: new FormControl(),
@@ -211,11 +117,13 @@ export class ModalComponent extends BaseModal implements OnInit {
      
 
     this.validateDefendantName = this.defendantAndCaseForm.controls['defendantname'];
-    this.validateDefendantGender= this.defendantAndCaseForm.controls['defendantgender'];
-    this.validateDefendantRace = this.defendantAndCaseForm.controls['defendantrace']
+    this.validateDefendantGender= this.defendantAndCaseForm.controls.defendantGender;
+
+    this.validateDefendantRace = this.defendantAndCaseForm.controls.defendantRace;
     this.validateFilter = this.defendantAndCaseForm.controls['chargeFilterInput']
- 
-  
+    this.charges.forEach(charge => {
+      this.filterCharge.push({id: charge, content: charge, selected: false})
+    })
   }
   
   validateSelection(control:FormControl){
@@ -244,7 +152,7 @@ export class ModalComponent extends BaseModal implements OnInit {
     this.searchText.pipe(
       debounceTime(100),
       distinctUntilChanged(),
-      switchMap((query) =>  this._filter(query))
+      switchMap((query?) =>  this._filter(query))
     )
     .subscribe(val => {
       if (val) {
@@ -279,11 +187,16 @@ export class ModalComponent extends BaseModal implements OnInit {
       } else {
         this.showProgress();
         this.modalSvc.submitForm(this.defendantAndCaseForm.value)
-        .subscribe((data: any) =>  {
-          // wait for data success and then close modal
-          this.modalService.destroy()
-          this.closeModal()
-        });
+        .subscribe((data: any) => {
+            // wait for data success and then close modal
+            this.modalService.destroy()
+            this.closeModal();
+          },
+          (err) => {
+            console.error('Error: ' + JSON.stringify(err));
+            this.modalService.destroy()
+            this.closeModal();
+          });
       }
     }
   
@@ -306,11 +219,13 @@ export class ModalComponent extends BaseModal implements OnInit {
     }
   }
 
-  validateCasedetails(){
-    
+  validateCasedetails(){   
       this.caseDetailsIsSelected = this.validateDefendantRace.value[0] == ''; 
       this.genderIsSelected = this.validateDefendantGender.value[0] == '';
-      
-  
-}
+  }
+
+  private isFormControlInvalid(formControlName: string): boolean {
+    return this.defendantAndCaseForm.get(formControlName).touched && 
+      this.defendantAndCaseForm.get(formControlName).invalid;
+  }
 }
